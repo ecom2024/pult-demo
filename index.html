@@ -964,4 +964,67 @@ document.getElementById('fut').innerHTML =
   zab.outerHTML='<span style="color:var(--good)">Забыто. При следующем открытии спросит пароль.</span>'}}
 try{setMode('day');syncCmp()}catch(e){
  document.getElementById('app').innerHTML='<div class="note">Не удалось построить пульт: '+e.message+'</div>'}
+</script>
+<script>
+/* Заглушка над закреплённой панелью.
+   На некоторых телефонах панель прилипает не вплотную к верху экрана, и в
+   оставшейся щели видно, как листается страница. Гадать, почему так, смысла
+   нет: меряем, где панель оказалась на самом деле, и закрываем всё выше неё. */
+(function(){
+ var bar=document.querySelector('.bar'); if(!bar)return;
+ var kr=document.createElement('div');
+ kr.style.cssText='position:fixed;top:0;left:0;right:0;height:0;background:var(--bg);'+
+                  'z-index:29;pointer-events:none';
+ document.body.appendChild(kr);
+ /* Где панель стоит, когда её не прилепило. Просто offsetTop не годится:
+    у прилипшей панели он показывает уже сдвинутое положение. Поэтому на один
+    кадр отключаем прилипание, меряем и возвращаем обратно — на экране это не
+    видно, браузер не успевает перерисовать. Меряем редко и запоминаем. */
+ var svoe=null;
+ function pereizmerit(){
+  var bylo=bar.style.position;
+  bar.style.position='static';
+  svoe=bar.getBoundingClientRect().top+(window.pageYOffset||document.documentElement.scrollTop||0);
+  bar.style.position=bylo;
+ }
+ function obnovit(){
+  if(svoe===null)pereizmerit();
+  var t=bar.getBoundingClientRect().top;
+  var sy=window.pageYOffset||document.documentElement.scrollTop||0;
+  var prilipla=sy>(svoe-t+1);
+  kr.style.height=(prilipla&&t>0.5)?(Math.ceil(t)+'px'):'0px';
+ }
+ function zanovo(){svoe=null;obnovit()}
+ obnovit();
+ addEventListener('scroll',obnovit,{passive:true});
+ addEventListener('resize',zanovo);
+ addEventListener('orientationchange',function(){setTimeout(zanovo,350)});
+ if(window.visualViewport){visualViewport.addEventListener('resize',obnovit);
+                           visualViewport.addEventListener('scroll',obnovit)}
+ setTimeout(zanovo,700);
+
+ /* Если к адресу дописать ?otladka=1 — панель покажет замеры.
+    Нужно только чтобы разобраться, если на каком-то телефоне поедет вёрстка. */
+ if(/otladka/.test(location.search)){
+  var pr=document.createElement('div');
+  pr.style.cssText='position:fixed;top:0;left:0;width:0;padding-top:env(safe-area-inset-top);visibility:hidden';
+  document.body.appendChild(pr);
+  var vyrez=Math.round(parseFloat(getComputedStyle(pr).paddingTop))||0;
+  var d=document.createElement('div');
+  d.style.cssText='font-size:10px;line-height:1.35;color:var(--muted);margin-top:6px';
+  bar.appendChild(d);
+  var pokazat=function(){
+   var r=bar.getBoundingClientRect(), vv=window.visualViewport;
+   d.textContent='вырез '+vyrez+' · панель сверху '+Math.round(r.top)+
+     ' · своё место '+Math.round(svoe)+' · прокрутка '+Math.round(window.pageYOffset||0)+
+     ' · заглушка '+kr.style.height+' · окно '+window.innerHeight+
+     (vv?' · видимое '+Math.round(vv.height)+' смещение '+Math.round(vv.offsetTop):'');
+  };
+  pokazat();
+  addEventListener('scroll',pokazat,{passive:true});
+  addEventListener('resize',pokazat);
+  if(window.visualViewport){visualViewport.addEventListener('resize',pokazat);
+                            visualViewport.addEventListener('scroll',pokazat)}
+ }
+})();
 </script></body></html>
