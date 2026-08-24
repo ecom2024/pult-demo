@@ -19,6 +19,8 @@
 --grid:#e6e5df;--line:#dedcd4;--border:rgba(11,11,11,.10);
 --c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--demo:#5a4bbd;color-scheme:light}
 *{box-sizing:border-box}
+.zavesa{position:fixed;left:0;right:0;top:-340px;height:340px;background:var(--bg);z-index:29;pointer-events:none}
+.bar.prilipla::before{content:'';position:absolute;left:0;right:0;bottom:100%;height:420px;background:var(--bg)}
 /* иначе карточка с длинным числом распирает сетку и страница едет вбок */
 .grid>*{min-width:0}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -202,7 +204,7 @@ tr:last-child td{border-bottom:none}
 footer{margin-top:40px;font-size:11.5px;color:var(--muted);line-height:1.75;border-top:1px solid var(--line);padding-top:16px}
 .lg{display:flex;gap:13px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);margin:0 0 9px}
 .lg i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
-</style></head><body><div class="wrap">
+</style></head><body><div class="zavesa"></div><div class="wrap">
 <div style="background:rgba(139,123,216,.13);border:1px solid rgba(139,123,216,.45);color:var(--demo);border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:13px;line-height:1.45">Демонстрационная версия. Все цифры изменены и не отражают реальные показатели компании.</div>
 <header><div><h1>Управленческий пульт</h1>
 <div class="sub" id="per">—</div><div class="pop" id="popPer"></div></div>
@@ -966,65 +968,40 @@ try{setMode('day');syncCmp()}catch(e){
  document.getElementById('app').innerHTML='<div class="note">Не удалось построить пульт: '+e.message+'</div>'}
 </script>
 <script>
-/* Заглушка над закреплённой панелью.
-   На некоторых телефонах панель прилипает не вплотную к верху экрана, и в
-   оставшейся щели видно, как листается страница. Гадать, почему так, смысла
-   нет: меряем, где панель оказалась на самом деле, и закрываем всё выше неё. */
+/* Панель прилипла — включаем ей фон вверх, чтобы над ней ничего не просвечивало. */
 (function(){
  var bar=document.querySelector('.bar'); if(!bar)return;
- var kr=document.createElement('div');
- kr.style.cssText='position:fixed;top:0;left:0;right:0;height:0;background:var(--bg);'+
-                  'z-index:29;pointer-events:none';
- document.body.appendChild(kr);
- /* Где панель стоит, когда её не прилепило. Просто offsetTop не годится:
-    у прилипшей панели он показывает уже сдвинутое положение. Поэтому на один
-    кадр отключаем прилипание, меряем и возвращаем обратно — на экране это не
-    видно, браузер не успевает перерисовать. Меряем редко и запоминаем. */
- var svoe=null;
- function pereizmerit(){
-  var bylo=bar.style.position;
-  bar.style.position='static';
-  svoe=bar.getBoundingClientRect().top+(window.pageYOffset||document.documentElement.scrollTop||0);
-  bar.style.position=bylo;
- }
- function obnovit(){
-  if(svoe===null)pereizmerit();
-  var t=bar.getBoundingClientRect().top;
-  var sy=window.pageYOffset||document.documentElement.scrollTop||0;
-  var prilipla=sy>(svoe-t+1);
-  kr.style.height=(prilipla&&t>0.5)?(Math.ceil(t)+'px'):'0px';
- }
- function zanovo(){svoe=null;obnovit()}
+ function obnovit(){bar.classList.toggle('prilipla', bar.getBoundingClientRect().top<=0.5)}
  obnovit();
  addEventListener('scroll',obnovit,{passive:true});
- addEventListener('resize',zanovo);
- addEventListener('orientationchange',function(){setTimeout(zanovo,350)});
+ addEventListener('resize',obnovit);
+ addEventListener('orientationchange',function(){setTimeout(obnovit,350)});
  if(window.visualViewport){visualViewport.addEventListener('resize',obnovit);
                            visualViewport.addEventListener('scroll',obnovit)}
- setTimeout(zanovo,700);
+})();
 
- /* Если к адресу дописать ?otladka=1 — панель покажет замеры.
-    Нужно только чтобы разобраться, если на каком-то телефоне поедет вёрстка. */
- if(/otladka/.test(location.search)){
-  var pr=document.createElement('div');
-  pr.style.cssText='position:fixed;top:0;left:0;width:0;padding-top:env(safe-area-inset-top);visibility:hidden';
-  document.body.appendChild(pr);
-  var vyrez=Math.round(parseFloat(getComputedStyle(pr).paddingTop))||0;
-  var d=document.createElement('div');
-  d.style.cssText='font-size:10px;line-height:1.35;color:var(--muted);margin-top:6px';
-  bar.appendChild(d);
-  var pokazat=function(){
-   var r=bar.getBoundingClientRect(), vv=window.visualViewport;
-   d.textContent='вырез '+vyrez+' · панель сверху '+Math.round(r.top)+
-     ' · своё место '+Math.round(svoe)+' · прокрутка '+Math.round(window.pageYOffset||0)+
-     ' · заглушка '+kr.style.height+' · окно '+window.innerHeight+
-     (vv?' · видимое '+Math.round(vv.height)+' смещение '+Math.round(vv.offsetTop):'');
-  };
-  pokazat();
-  addEventListener('scroll',pokazat,{passive:true});
-  addEventListener('resize',pokazat);
-  if(window.visualViewport){visualViewport.addEventListener('resize',pokazat);
-                            visualViewport.addEventListener('scroll',pokazat)}
+/* Строка замеров. Появляется, только если к адресу дописать ?otladka=1 —
+   нужна, чтобы разбираться, если на каком-то телефоне поедет вёрстка. */
+(function(){
+ if(!/otladka/.test(location.search))return;
+ var bar=document.querySelector('.bar'); if(!bar)return;
+ var pr=document.createElement('div');
+ pr.style.cssText='position:fixed;top:0;left:0;width:0;padding-top:env(safe-area-inset-top);visibility:hidden';
+ document.body.appendChild(pr);
+ var vyrez=Math.round(parseFloat(getComputedStyle(pr).paddingTop))||0;
+ var d=document.createElement('div');
+ d.style.cssText='font-size:10px;line-height:1.35;color:var(--muted);margin-top:6px';
+ bar.appendChild(d);
+ function pokazat(){
+  var r=bar.getBoundingClientRect(), vv=window.visualViewport;
+  d.textContent='вырез '+vyrez+' · панель сверху '+Math.round(r.top)+
+    ' · прокрутка '+Math.round(window.pageYOffset||0)+' · прилипла '+bar.classList.contains('prilipla')+' · окно '+window.innerHeight+
+    (vv?' · видимое '+Math.round(vv.height)+' смещение '+Math.round(vv.offsetTop):'');
  }
+ pokazat();
+ addEventListener('scroll',pokazat,{passive:true});
+ addEventListener('resize',pokazat);
+ if(window.visualViewport){visualViewport.addEventListener('resize',pokazat);
+                           visualViewport.addEventListener('scroll',pokazat)}
 })();
 </script></body></html>
